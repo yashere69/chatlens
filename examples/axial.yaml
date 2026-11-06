@@ -1,0 +1,14 @@
+# A reviewer's own grouping of the open codes in labels.jsonl into failure modes.
+policy-error:
+  - wrong-shipping-fee
+  - fee-amount-wrong
+  - policy-number-wrong
+  - wrong-return-window
+  - return-days-wrong
+missing-info:
+  - missing-tracking-link
+  - no-tracking-link
+non-answer:
+  - ignored-question
+  - question-ignored
+  - generic-reply
