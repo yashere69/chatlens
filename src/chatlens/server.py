@@ -49,6 +49,15 @@ def make_handler(traces: list[dict], labels_path: Path):
         def do_POST(self):  # noqa: N802
             if self.path != "/api/labels":
                 return self._json(404, {"error": "not found"})
+            # Any web page can POST a plain form to 127.0.0.1. Requiring a JSON content type
+            # forces a CORS preflight that this server never answers, and checking Origin
+            # catches browsers that send one anyway.
+            if self.headers.get("Content-Type", "").split(";")[0].strip() != "application/json":
+                return self._json(415, {"error": "expected application/json"})
+            origin = self.headers.get("Origin")
+            host = self.headers.get("Host", "")
+            if origin and origin.split("://", 1)[-1] != host:
+                return self._json(403, {"error": "cross-origin request refused"})
             try:
                 row = clean_label(json.loads(self.rfile.read(int(self.headers["Content-Length"]))))
             except (ValueError, KeyError, TypeError) as e:
