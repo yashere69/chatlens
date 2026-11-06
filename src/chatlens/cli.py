@@ -11,7 +11,7 @@ import yaml
 
 from . import __version__
 from .analysis import agreement, failure_table, suggest
-from .convert import from_whatsapp, to_turncheck, write_jsonl
+from .convert import from_chat_logs, from_whatsapp, to_turncheck, write_jsonl
 from .server import serve
 from .store import TraceError, load_labels, load_traces
 
@@ -27,9 +27,10 @@ def main(argv: list[str] | None = None) -> int:
     s.add_argument("--port", type=int, default=8765)
     s.add_argument("--no-browser", action="store_true")
 
-    i = sub.add_parser("import", help="WhatsApp export -> traces.jsonl")
+    i = sub.add_parser("import", help="WhatsApp export or chat-completions logs -> traces.jsonl")
     i.add_argument("export", type=Path)
-    i.add_argument("--business", required=True)
+    i.add_argument("--from", dest="fmt", choices=["whatsapp", "chat-logs"], default="whatsapp")
+    i.add_argument("--business", help="the store's name in a WhatsApp export")
     i.add_argument("-o", "--out", type=Path, default=Path("traces.jsonl"))
 
     r = sub.add_parser("report", help="failure modes from labels and an axial map")
@@ -60,7 +61,14 @@ def main(argv: list[str] | None = None) -> int:
                 pass
             return 0
         if a.cmd == "import":
-            traces = from_whatsapp(a.export.read_text(encoding="utf-8"), a.business)
+            text = a.export.read_text(encoding="utf-8")
+            if a.fmt == "chat-logs":
+                traces = from_chat_logs(text, a.export.stem)
+            elif not a.business:
+                print("error: WhatsApp imports need --business", file=sys.stderr)
+                return 2
+            else:
+                traces = from_whatsapp(text, a.business)
             write_jsonl(traces, a.out)
             print(f"wrote {len(traces)} traces to {a.out}")
             return 0

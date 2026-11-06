@@ -82,11 +82,24 @@ def test_server_api(tmp_path):
         assert json.load(urllib.request.urlopen(req))["codes"] == ["x-y"]
         assert load_labels(labels_path)[traces[0]["id"]]["verdict"] == "fail"
         bad = urllib.request.Request(
-            base + "/api/labels", method="POST", data=b'{"trace": "nope", "verdict": "pass"}'
+            base + "/api/labels",
+            method="POST",
+            data=b'{"trace": "nope", "verdict": "pass"}',
+            headers={"Content-Type": "application/json"},
         )
         with pytest.raises(urllib.error.HTTPError) as e:
             urllib.request.urlopen(bad)
         assert e.value.code == 400
+        for headers, code in [
+            ({}, 415),  # a plain HTML form can't set a JSON content type
+            ({"Content-Type": "application/json", "Origin": "https://evil.example"}, 403),
+        ]:
+            req = urllib.request.Request(
+                base + "/api/labels", data=body.encode(), method="POST", headers=headers
+            )
+            with pytest.raises(urllib.error.HTTPError) as e:
+                urllib.request.urlopen(req)
+            assert e.value.code == code
     finally:
         httpd.shutdown()
 
@@ -102,3 +115,38 @@ def test_cli_report_suggest_export(tmp_path, capsys):
     assert len(list(out.glob("*.yaml"))) == sum(
         1 for x in (EXAMPLES / "labels.jsonl").read_text().splitlines() if '"fail"' in x
     )
+
+
+def test_chat_logs_import():
+    from chatlens.convert import from_chat_logs
+
+    text = (
+        '{"id": "r1", "messages": [{"role": "system", "content": "be nice"},'
+        '{"role": "user", "content": "COD hai?"},'
+        '{"role": "assistant", "content": null, "tool_calls": [{"function": '
+        '{"name": "policy", "arguments": "{\\"topic\\": \\"cod\\"}"}}]},'
+        '{"role": "tool", "content": "COD up to 5000"},'
+        '{"role": "assistant", "content": [{"type": "text", "text": "Haan, 5000 tak."}]}]}\n'
+        '[{"role": "user", "content": "hi"}]\n'
+    )
+    a, b = from_chat_logs(text, "prod")
+    assert a["id"] == "r1" and b["id"] == "prod-2"
+    assert [t["role"] for t in a["turns"]] == ["system", "customer", "tool", "tool", "agent"]
+    assert a["turns"][2]["text"] == 'policy({"topic": "cod"})'
+    assert a["turns"][4]["text"] == "Haan, 5000 tak."
+    with pytest.raises(ValueError, match="unknown role"):
+        from_chat_logs('{"messages": [{"role": "robot", "content": "x"}]}')
+
+
+def test_turncheck_transcripts_load_as_traces(tmp_path):
+    """The line format turncheck --transcripts writes; chatlens must read it unchanged."""
+    p = tmp_path / "runs.jsonl"
+    p.write_text(
+        '{"id": "02-order-status", "turns": [{"role": "customer", "text": "where is #KC1042?",'
+        ' "at": "2026-01-01T10:00:05+00:00"}, {"role": "tool", "text": "{\\"type\\": '
+        '\\"tool_call\\"}", "at": "2026-01-01T10:00:05+00:00"}, {"role": "agent", "text": '
+        '"interactive: \'Order KC1042 is shipped\'", "at": "2026-01-01T10:00:05+00:00"}], '
+        '"meta": {"scenario": "x", "passed": true, "failure": ""}}\n'
+    )
+    (trace,) = load_traces(p)
+    assert [t["role"] for t in trace["turns"]] == ["customer", "tool", "agent"]

@@ -66,6 +66,64 @@ def from_whatsapp(text: str, business: str) -> list[dict]:
     return list(traces.values())
 
 
+ROLE_MAP = {
+    "user": "customer",
+    "assistant": "agent",
+    "tool": "tool",
+    "function": "tool",
+    "system": "system",
+    "developer": "system",
+}
+
+
+def _content(c: object) -> str:
+    """Message content is a string, or a list of parts in newer APIs; keep the text parts."""
+    if isinstance(c, str):
+        return c
+    if isinstance(c, list):
+        return "\n".join(
+            str(part.get("text", ""))
+            for part in c
+            if isinstance(part, dict) and part.get("type") in ("text", "input_text", "output_text")
+        )
+    return ""
+
+
+def from_chat_logs(text: str, source: str = "log") -> list[dict]:
+    """JSONL of logged chat-completions calls: each line {"messages": [...]} or a bare list,
+    optionally with "id". This is what most apps already log, so it's the shortest path from
+    production to a review session. Tool calls on assistant messages become tool turns."""
+    traces = []
+    for n, line in enumerate(text.splitlines(), start=1):
+        if not line.strip():
+            continue
+        try:
+            row = json.loads(line)
+        except json.JSONDecodeError as e:
+            raise ValueError(f"{source}:{n}: not JSON ({e.msg})") from e
+        msgs = row if isinstance(row, list) else row.get("messages")
+        if not isinstance(msgs, list):
+            raise ValueError(f"{source}:{n}: expected a 'messages' list")
+        turns = []
+        for m in msgs:
+            role = ROLE_MAP.get(str(m.get("role")))
+            if role is None:
+                raise ValueError(f"{source}:{n}: unknown role {m.get('role')!r}")
+            text_ = _content(m.get("content"))
+            if text_:
+                turns.append({"role": role, "text": text_})
+            for call in m.get("tool_calls") or []:
+                fn = call.get("function", {})
+                turns.append(
+                    {"role": "tool", "text": f"{fn.get('name')}({fn.get('arguments', '')})"}
+                )
+        rid = row.get("id") if isinstance(row, dict) else None
+        traces.append(
+            {"id": str(rid or f"{source}-{n}"), "turns": turns, "meta": {"source": f"{source}:{n}"}}
+        )
+    return traces
+
+
 def write_jsonl(traces: list[dict], path: Path) -> None:
     path.write_text(
         "".join(json.dumps(t, ensure_ascii=False) + "\n" for t in traces), encoding="utf-8"

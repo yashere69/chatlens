@@ -9,9 +9,22 @@ reading its conversations, one at a time, and writing down what went wrong.
 
 ```bash
 pip install git+https://github.com/yashere69/chatlens
-chatlens import "WhatsApp Chat with Asha.txt" --business "Your Store" -o traces.jsonl
+chatlens import prod-calls.jsonl --from chat-logs -o traces.jsonl
 chatlens serve traces.jsonl            # opens http://127.0.0.1:8765
 ```
+
+## Getting conversations in
+
+| Source | Command |
+|---|---|
+| Logged chat-completions calls, one `{"messages": [...]}` (or a bare list) per line, the shape most apps already log | `chatlens import calls.jsonl --from chat-logs` |
+| WhatsApp exports | `chatlens import "WhatsApp Chat with Asha.txt" --business "Your Store"` |
+| [turncheck](https://github.com/yashere69/turncheck) runs | `turncheck run ... --transcripts runs.jsonl`, then `chatlens serve runs.jsonl` directly |
+| Anything else | write `{"id", "turns": [{"role", "text"}]}` per line; roles are customer, agent, tool, system |
+
+For chat logs, `user` becomes customer and `assistant` becomes agent. Tool calls on an
+assistant message become `tool` turns showing the function and its arguments, and list-style
+content keeps only its text parts.
 
 ## The method
 
@@ -86,7 +99,10 @@ exactly what axial coding exists to tidy up.
 ## Design notes
 
 - **Local only.** The server binds to 127.0.0.1. Conversations usually contain customer
-  data, so there's no reason for this to listen on a network.
+  data, so there's no reason for this to listen on a network. Binding to localhost doesn't
+  stop *other web pages* in your browser from posting to it. So label writes must be
+  `application/json` (a plain form can't send that without a CORS preflight, which the
+  server never grants), and a request whose `Origin` doesn't match the server is refused.
 - **One HTML file, no build step.** The page is about 210 lines of HTML, CSS and plain
   JavaScript, shipped inside the Python package. The Pages demo is the same file: when
   `/api/traces` isn't there, it loads the sample, keeps labels in `localStorage`, and
