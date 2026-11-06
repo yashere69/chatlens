@@ -1,0 +1,209 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>chatlens</title>
+<meta name="description" content="Keyboard-first error analysis for chat-agent conversations.">
+<style>
+:root{--bg:#fbfaf7;--panel:#fff;--fg:#17212b;--muted:#5b6672;--line:#e3dfd6;--ok:#1f6f5c;
+--bad:#b3412e;--you:#eef4f1;--agent:#f4f2ec;--focus:#3d5a80}
+*{box-sizing:border-box}
+html,body{height:100%}
+body{margin:0;background:var(--bg);color:var(--fg);font:15px/1.5 system-ui,-apple-system,
+"Segoe UI",Roboto,sans-serif}
+header{display:flex;gap:16px;align-items:center;padding:10px 16px;border-bottom:1px solid var(--line);
+background:var(--panel);flex-wrap:wrap}
+header h1{font-size:1rem;margin:0}
+header .progress{color:var(--muted);font-size:.9rem}
+header .keys{margin-left:auto;color:var(--muted);font-size:.82rem}
+kbd{border:1px solid var(--line);border-bottom-width:2px;border-radius:4px;padding:0 5px;
+font:12px ui-monospace,monospace;background:#fff}
+.demo{background:#fff6e0;border-bottom:1px solid #f0dca6;padding:8px 16px;font-size:.9rem}
+main{display:grid;grid-template-columns:240px 1fr 280px;height:calc(100% - 50px)}
+nav,aside{overflow:auto;border-right:1px solid var(--line);background:var(--panel)}
+aside{border-right:0;border-left:1px solid var(--line);padding:14px}
+nav button{display:flex;gap:8px;align-items:center;width:100%;text-align:left;border:0;
+background:none;padding:8px 12px;font:inherit;font-size:.88rem;color:var(--fg);cursor:pointer;
+border-bottom:1px solid var(--line)}
+nav button[aria-current="true"]{background:var(--you);font-weight:600}
+nav button:focus-visible,button:focus-visible,input:focus-visible,textarea:focus-visible{
+outline:2px solid var(--focus);outline-offset:1px}
+.dot{width:9px;height:9px;border-radius:50%;background:var(--line);flex:none}
+.dot.pass{background:var(--ok)} .dot.fail{background:var(--bad)}
+section.trace{overflow:auto;padding:18px 22px}
+.turn{max-width:72ch;margin:0 0 10px;padding:9px 12px;border-radius:10px;white-space:pre-wrap}
+.turn.customer{background:var(--you)} .turn.agent{background:var(--agent);margin-left:6ch}
+.turn.tool{background:#fff;border:1px dashed var(--line);font:13px ui-monospace,monospace}
+.turn small{display:block;color:var(--muted);font-size:.75rem;margin-bottom:2px}
+form{margin-top:18px;padding-top:14px;border-top:1px solid var(--line);max-width:72ch}
+.verdict{display:flex;gap:8px;margin-bottom:10px}
+.verdict button{flex:1;padding:8px;border-radius:8px;border:1px solid var(--line);
+background:#fff;font:inherit;cursor:pointer}
+.verdict button[aria-pressed="true"].p{background:var(--ok);color:#fff;border-color:var(--ok)}
+.verdict button[aria-pressed="true"].f{background:var(--bad);color:#fff;border-color:var(--bad)}
+label{display:block;font-size:.85rem;color:var(--muted);margin:8px 0 3px}
+textarea,input[type=text]{width:100%;font:inherit;padding:7px 9px;border:1px solid var(--line);
+border-radius:8px;background:#fff}
+textarea{min-height:60px;resize:vertical}
+.status{font-size:.85rem;color:var(--muted);margin-top:8px;min-height:1.2em}
+aside h2{font-size:.95rem;margin:0 0 8px}
+aside table{width:100%;border-collapse:collapse;font-size:.88rem}
+aside td{padding:4px 0;border-bottom:1px solid var(--line)} aside td:last-child{text-align:right}
+aside p{color:var(--muted);font-size:.85rem}
+.actions{margin-top:14px} .actions button{font:inherit;padding:6px 10px;border-radius:8px;
+border:1px solid var(--line);background:#fff;cursor:pointer}
+@media (max-width:900px){
+  main{grid-template-columns:1fr;height:auto}
+  nav{max-height:180px;border-right:0;border-bottom:1px solid var(--line)}
+  aside{border-left:0;border-top:1px solid var(--line)}
+  header .keys{display:none}
+}
+</style>
+</head>
+<body>
+<header>
+  <h1>chatlens</h1>
+  <span class="progress" id="progress" aria-live="polite"></span>
+  <span class="keys"><kbd>j</kbd>/<kbd>k</kbd> move · <kbd>p</kbd> pass · <kbd>f</kbd> fail ·
+  <kbd>n</kbd> note · <kbd>Ctrl</kbd>+<kbd>Enter</kbd> save</span>
+</header>
+<div class="demo" id="demo" hidden>Demo mode: labels are kept in this browser only. Run
+<code>chatlens serve</code> locally to save them to a file.</div>
+<main>
+  <nav aria-label="Conversations" id="list"></nav>
+  <section class="trace" aria-live="polite">
+    <div id="turns"></div>
+    <form id="form">
+      <div class="verdict" role="group" aria-label="Verdict">
+        <button type="button" class="p" id="pass" aria-pressed="false">Pass</button>
+        <button type="button" class="f" id="fail" aria-pressed="false">Fail</button>
+      </div>
+      <label for="note">What went wrong first? (open note)</label>
+      <textarea id="note" placeholder="e.g. quoted ₹99 shipping; policy says ₹79"></textarea>
+      <label for="codes">Codes, comma-separated</label>
+      <input type="text" id="codes" list="known" autocomplete="off"
+             placeholder="e.g. wrong-shipping-fee">
+      <datalist id="known"></datalist>
+      <div class="status" id="status" role="status"></div>
+    </form>
+  </section>
+  <aside aria-labelledby="modes">
+    <h2 id="modes">Codes on failed conversations</h2>
+    <table><tbody id="table"></tbody></table>
+    <p id="rate"></p>
+    <div class="actions" id="actions" hidden><button type="button" id="download">Download
+    labels.jsonl</button></div>
+  </aside>
+</main>
+<script>
+let traces = [], labels = {}, i = 0, verdict = null, demo = false;
+const $ = id => document.getElementById(id);
+const KEY = "chatlens-demo-labels";
+
+async function load() {
+  try {
+    const r = await fetch("api/traces");
+    if (!r.ok) throw new Error();
+    traces = await r.json();
+    for (const l of await (await fetch("api/labels")).json()) labels[l.trace] = l;
+  } catch {
+    demo = true;
+    traces = await (await fetch("sample-traces.json")).json();
+    try { labels = JSON.parse(localStorage.getItem(KEY) || "{}"); } catch { labels = {}; }
+    $("demo").hidden = false; $("actions").hidden = false;
+  }
+  const firstOpen = traces.findIndex(t => !labels[t.id]);
+  show(firstOpen === -1 ? 0 : firstOpen);
+}
+
+function esc(s) { return String(s).replace(/[&<>"]/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c])); }
+
+function renderList() {
+  $("list").innerHTML = traces.map((t, k) => `<button type="button" data-k="${k}"
+    aria-current="${k === i}"><span class="dot ${labels[t.id]?.verdict || ""}"
+    aria-hidden="true"></span>${esc(t.id)}</button>`).join("");
+  $("list").querySelectorAll("button").forEach(b => b.onclick = () => show(+b.dataset.k));
+  const done = Object.keys(labels).length;
+  $("progress").textContent = `${done} of ${traces.length} labelled`;
+}
+
+function renderTable() {
+  const failed = Object.values(labels).filter(l => l.verdict === "fail");
+  const counts = {};
+  failed.forEach(l => l.codes.forEach(c => counts[c] = (counts[c] || 0) + 1));
+  const rows = Object.entries(counts).sort((a, b) => b[1] - a[1]);
+  $("table").innerHTML = rows.map(([c, n]) => `<tr><td>${esc(c)}</td><td>${n}</td></tr>`).join("")
+    || `<tr><td>No failures labelled yet.</td><td></td></tr>`;
+  const total = Object.keys(labels).length;
+  $("rate").textContent = total ? `${failed.length} of ${total} failed
+    (${Math.round(100 * failed.length / total)}%). Group codes into failure modes with
+    chatlens report --map.` : "";
+  $("known").innerHTML = Object.keys(counts).map(c => `<option value="${esc(c)}">`).join("");
+}
+
+function setVerdict(v) {
+  verdict = v;
+  $("pass").setAttribute("aria-pressed", v === "pass");
+  $("fail").setAttribute("aria-pressed", v === "fail");
+}
+
+function show(k) {
+  i = Math.max(0, Math.min(traces.length - 1, k));
+  const t = traces[i];
+  $("turns").innerHTML = `<h2 style="font-size:1rem;margin:0 0 12px">${esc(t.id)}</h2>` +
+    t.turns.map(u => `<div class="turn ${u.role}"><small>${u.role}${u.at ? " · " +
+    esc(u.at.replace("T", " ").slice(0, 16)) : ""}</small>${esc(u.text)}</div>`).join("");
+  const l = labels[t.id];
+  setVerdict(l?.verdict || null);
+  $("note").value = l?.note || "";
+  $("codes").value = (l?.codes || []).join(", ");
+  $("status").textContent = l ? "Saved." : "";
+  renderList(); renderTable();
+}
+
+async function save() {
+  if (!verdict) { $("status").textContent = "Choose pass or fail first."; return false; }
+  const row = { trace: traces[i].id, verdict, note: $("note").value.trim(),
+    codes: verdict === "fail" ? $("codes").value.split(",").map(s => s.trim().toLowerCase()
+      .replace(/\s+/g, "-")).filter(Boolean) : [] };
+  if (demo) {
+    labels[row.trace] = row;
+    try { localStorage.setItem(KEY, JSON.stringify(labels)); } catch {}
+  } else {
+    const r = await fetch("api/labels", { method: "POST", headers: {"Content-Type":
+      "application/json"}, body: JSON.stringify(row) });
+    if (!r.ok) { $("status").textContent = "Not saved: " + (await r.json()).error; return false; }
+    labels[row.trace] = await r.json();
+  }
+  $("status").textContent = "Saved.";
+  renderList(); renderTable();
+  return true;
+}
+
+$("pass").onclick = () => { setVerdict("pass"); save(); };
+$("fail").onclick = () => { setVerdict("fail"); $("note").focus(); };
+$("download").onclick = () => {
+  const body = Object.values(labels).map(l => JSON.stringify(l)).join("\n") + "\n";
+  const a = document.createElement("a");
+  a.href = URL.createObjectURL(new Blob([body], {type: "application/json"}));
+  a.download = "labels.jsonl"; a.click();
+};
+document.addEventListener("keydown", async e => {
+  const typing = ["TEXTAREA", "INPUT"].includes(document.activeElement.tagName);
+  if (typing) {
+    if (e.key === "Enter" && (e.ctrlKey || e.metaKey)) { e.preventDefault();
+      if (await save()) { document.activeElement.blur(); show(i + 1); } }
+    if (e.key === "Escape") document.activeElement.blur();
+    return;
+  }
+  if (e.key === "j") show(i + 1);
+  else if (e.key === "k") show(i - 1);
+  else if (e.key === "p") { setVerdict("pass"); if (await save()) show(i + 1); }
+  else if (e.key === "f") { setVerdict("fail"); e.preventDefault(); $("note").focus(); }
+  else if (e.key === "n") { e.preventDefault(); $("note").focus(); }
+});
+load();
+</script>
+</body>
+</html>
