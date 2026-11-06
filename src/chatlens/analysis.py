@@ -33,8 +33,17 @@ def failure_table(labels: dict[str, dict], axial: dict[str, list[str]]) -> list[
 
 
 def _tokens(code: str) -> set[str]:
-    return set(re.split(r"[-_\s]+", code.lower())) - {"", "the", "a", "of", "to", "wrong",
-                                                      "missing", "no", "not"}
+    return set(re.split(r"[-_\s]+", code.lower())) - {
+        "",
+        "the",
+        "a",
+        "of",
+        "to",
+        "wrong",
+        "missing",
+        "no",
+        "not",
+    }
 
 
 def suggest(codes: list[str], threshold: float = 0.34) -> dict[str, list[str]]:
@@ -74,8 +83,9 @@ def kappa(a: list[str], b: list[str]) -> float:
     return 1.0 if expected == 1 else (observed - expected) / (1 - expected)
 
 
-def agreement(labels: dict[str, dict], mine: dict[str, list[str]],
-              suggested: dict[str, list[str]]) -> float:
+def agreement(
+    labels: dict[str, dict], mine: dict[str, list[str]], suggested: dict[str, list[str]]
+) -> float:
     """Kappa over failed traces between your axial map and a suggested one.
 
     The two maps use different mode names, so each suggested mode is renamed to the mode of

@@ -57,12 +57,15 @@ def clean_label(row: dict) -> dict:
     verdict = row.get("verdict")
     if verdict not in {"pass", "fail"}:
         raise ValueError("verdict must be 'pass' or 'fail'")
-    codes = sorted({c.strip().lower().replace(" ", "-") for c in row.get("codes", []) if
-                    c.strip()})
+    codes = sorted({c.strip().lower().replace(" ", "-") for c in row.get("codes", []) if c.strip()})
     if verdict == "pass":
         codes = []
-    return {"trace": str(row["trace"]), "verdict": verdict,
-            "note": str(row.get("note", "")).strip(), "codes": codes}
+    return {
+        "trace": str(row["trace"]),
+        "verdict": verdict,
+        "note": str(row.get("note", "")).strip(),
+        "codes": codes,
+    }
 
 
 def save_labels(path: Path, labels: dict[str, dict]) -> None:

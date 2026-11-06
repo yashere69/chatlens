@@ -54,15 +54,22 @@ def from_whatsapp(text: str, business: str) -> list[dict]:
             role = "agent"
         else:
             continue
-        trace = traces.setdefault(key, {"id": key.lower().replace(" ", "-"), "turns": [],
-                                        "meta": {"customer": last_customer or who}})
+        trace = traces.setdefault(
+            key,
+            {
+                "id": key.lower().replace(" ", "-"),
+                "turns": [],
+                "meta": {"customer": last_customer or who},
+            },
+        )
         trace["turns"].append({"role": role, "text": body, "at": at.isoformat()})
     return list(traces.values())
 
 
 def write_jsonl(traces: list[dict], path: Path) -> None:
-    path.write_text("".join(json.dumps(t, ensure_ascii=False) + "\n" for t in traces),
-                    encoding="utf-8")
+    path.write_text(
+        "".join(json.dumps(t, ensure_ascii=False) + "\n" for t in traces), encoding="utf-8"
+    )
 
 
 def to_turncheck(trace: dict, label: dict) -> str:
@@ -76,7 +83,9 @@ def to_turncheck(trace: dict, label: dict) -> str:
         "customer": {"wa_id": "919800000001", "name": "Test Customer"},
         "steps": steps,
     }
-    header = (f"# From chatlens: {trace['id']} was labelled fail "
-              f"({', '.join(label['codes']) or 'no codes'}).\n"
-              "# Tighten the expect_reply steps to describe the correct behaviour.\n")
+    header = (
+        f"# From chatlens: {trace['id']} was labelled fail "
+        f"({', '.join(label['codes']) or 'no codes'}).\n"
+        "# Tighten the expect_reply steps to describe the correct behaviour.\n"
+    )
     return header + yaml.safe_dump(doc, allow_unicode=True, sort_keys=False)

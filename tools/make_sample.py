@@ -21,18 +21,30 @@ ROOT = Path(__file__).resolve().parent.parent
 
 FAILURES = [
     # (applies if, mutate, possible codes, note)
-    (lambda t: "₹79" in t, lambda t: t.replace("₹79", "₹99"),
-     ["wrong-shipping-fee", "fee-amount-wrong", "policy-number-wrong"],
-     "quoted ₹99 shipping; policy says ₹79"),
-    (lambda t: "7 din" in t, lambda t: t.replace("7 din", "15 din"),
-     ["wrong-return-window", "return-days-wrong", "policy-number-wrong"],
-     "said 15 days to return; policy is 7"),
-    (lambda t: "Tracking" in t, lambda t: t.split(" Tracking")[0].split(" Tracking link")[0],
-     ["missing-tracking-link", "no-tracking-link"],
-     "order status without the tracking link"),
-    (lambda t: True, lambda t: "Thank you for contacting Indigo Loom! We'll get back to you.",
-     ["ignored-question", "question-ignored", "generic-reply"],
-     "canned reply, didn't answer"),
+    (
+        lambda t: "₹79" in t,
+        lambda t: t.replace("₹79", "₹99"),
+        ["wrong-shipping-fee", "fee-amount-wrong", "policy-number-wrong"],
+        "quoted ₹99 shipping; policy says ₹79",
+    ),
+    (
+        lambda t: "7 din" in t,
+        lambda t: t.replace("7 din", "15 din"),
+        ["wrong-return-window", "return-days-wrong", "policy-number-wrong"],
+        "said 15 days to return; policy is 7",
+    ),
+    (
+        lambda t: "Tracking" in t,
+        lambda t: t.split(" Tracking")[0].split(" Tracking link")[0],
+        ["missing-tracking-link", "no-tracking-link"],
+        "order status without the tracking link",
+    ),
+    (
+        lambda t: True,
+        lambda t: "Thank you for contacting Indigo Loom! We'll get back to you.",
+        ["ignored-question", "question-ignored", "generic-reply"],
+        "canned reply, didn't answer",
+    ),
 ]
 
 
@@ -52,8 +64,12 @@ def main(export: Path) -> None:
                 options = specific or FAILURES[-1:]
                 applies, mutate, codes, note = r.choice(options)
                 turn["text"] = mutate(turn["text"])
-                label = {"trace": trace["id"], "verdict": "fail", "note": note,
-                         "codes": [r.choice(codes)]}
+                label = {
+                    "trace": trace["id"],
+                    "verdict": "fail",
+                    "note": note,
+                    "codes": [r.choice(codes)],
+                }
                 break
         labels[trace["id"]] = label
     write_jsonl(traces, ROOT / "examples" / "traces.jsonl")

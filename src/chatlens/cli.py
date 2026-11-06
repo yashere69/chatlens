@@ -66,8 +66,11 @@ def main(argv: list[str] | None = None) -> int:
             return 0
         labels = load_labels(a.labels)
         if a.cmd == "report":
-            axial = yaml.safe_load(a.map.read_text()) if a.map else suggest(
-                [c for lab in labels.values() for c in lab["codes"]])
+            axial = (
+                yaml.safe_load(a.map.read_text())
+                if a.map
+                else suggest([c for lab in labels.values() for c in lab["codes"]])
+            )
             fails = sum(lab["verdict"] == "fail" for lab in labels.values())
             print(f"{len(labels)} traces labelled, {fails} failed\n")
             print(f"{'failure mode':<24}{'traces':>8}{'rate':>8}")
@@ -89,7 +92,8 @@ def main(argv: list[str] | None = None) -> int:
         for lab in labels.values():
             if lab["verdict"] == "fail" and lab["trace"] in traces_by_id:
                 (a.out / f"{lab['trace']}.yaml").write_text(
-                    to_turncheck(traces_by_id[lab["trace"]], lab), encoding="utf-8")
+                    to_turncheck(traces_by_id[lab["trace"]], lab), encoding="utf-8"
+                )
                 n += 1
         print(f"wrote {n} scenarios to {a.out}/")
         return 0
