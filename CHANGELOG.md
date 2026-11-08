@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- Output is UTF-8 even when redirected on Windows, where it used to follow the code page
+  and fail on Devanagari text.
 - `suggest --compare` reports the adjusted Rand index and a per-group breakdown instead of
   Cohen's kappa after matching group names. The old number couldn't drop when `suggest`
   split one of your modes in two, so the sample scored 1.00 with 5 groups against 3. It
