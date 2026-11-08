@@ -100,7 +100,7 @@ def main(argv: list[str] | None = None) -> int:
         if a.cmd == "import":
             text = a.export.read_text(encoding="utf-8")
             if a.fmt == "chat-logs":
-                traces = from_chat_logs(text, a.export.stem)
+                traces = from_chat_logs(text, a.export.stem, str(a.export))
             elif not a.business:
                 print("error: WhatsApp imports need --business", file=sys.stderr)
                 return 2

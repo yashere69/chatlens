@@ -89,26 +89,27 @@ def _content(c: object) -> str:
     return ""
 
 
-def from_chat_logs(text: str, source: str = "log") -> list[dict]:
+def from_chat_logs(text: str, source: str = "log", filename: str | None = None) -> list[dict]:
     """JSONL of logged chat-completions calls: each line {"messages": [...]} or a bare list,
     optionally with "id". This is what most apps already log, so it's the shortest path from
     production to a review session. Tool calls on assistant messages become tool turns."""
     traces = []
+    where = filename or source  # source also prefixes trace ids; errors name the file
     for n, line in enumerate(text.splitlines(), start=1):
         if not line.strip():
             continue
         try:
             row = json.loads(line)
         except json.JSONDecodeError as e:
-            raise ValueError(f"{source}:{n}: not JSON ({e.msg})") from e
+            raise ValueError(f"{where}:{n}: not JSON ({e.msg})") from e
         msgs = row if isinstance(row, list) else row.get("messages")
         if not isinstance(msgs, list):
-            raise ValueError(f"{source}:{n}: expected a 'messages' list")
+            raise ValueError(f"{where}:{n}: expected a 'messages' list")
         turns = []
         for m in msgs:
             role = ROLE_MAP.get(str(m.get("role")))
             if role is None:
-                raise ValueError(f"{source}:{n}: unknown role {m.get('role')!r}")
+                raise ValueError(f"{where}:{n}: unknown role {m.get('role')!r}")
             text_ = _content(m.get("content"))
             if text_:
                 turns.append({"role": role, "text": text_})

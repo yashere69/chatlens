@@ -174,3 +174,10 @@ def test_empty_import_and_missing_labels_are_errors(tmp_path, capsys):
     assert main(["report", str(tmp_path / "nope.jsonl")]) == 2
     assert main(["agree", str(EXAMPLES / "labels.jsonl"), str(tmp_path / "nope.jsonl")]) == 2
     assert "no such labels file" in capsys.readouterr().err
+
+
+def test_chat_log_import_errors_name_the_file(tmp_path, capsys):
+    bad = tmp_path / "prod-logs.jsonl"
+    bad.write_text('{"messages": []}\n{oops\n', encoding="utf-8")
+    assert main(["import", str(bad), "--from", "chat-logs", "-o", str(tmp_path / "t.jsonl")]) == 2
+    assert f"{bad}:2: not JSON" in capsys.readouterr().err

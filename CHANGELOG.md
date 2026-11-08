@@ -2,6 +2,7 @@
 
 ## Unreleased
 
+- `import --from chat-logs` errors name the file (`prod-logs.jsonl:2`), not just its stem.
 - Output is UTF-8 even when redirected on Windows, where it used to follow the code page
   and fail on Devanagari text.
 - `suggest --compare` reports the adjusted Rand index and a per-group breakdown instead of
