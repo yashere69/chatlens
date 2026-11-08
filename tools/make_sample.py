@@ -5,7 +5,9 @@ injects four kinds of agent mistakes into some replies and writes labels for eve
 with the free-form, inconsistent codes a real reviewer tends to use. The failures are
 planted; that is what makes the demo's numbers checkable.
 
-    python tools/make_sample.py path/to/chat-export-android.txt
+    python tools/make_sample.py ../nakli/examples/chat-export-android.txt
+
+With that file (nakli's committed sample) the output is byte-identical to examples/.
 """
 
 from __future__ import annotations
@@ -79,4 +81,6 @@ def main(export: Path) -> None:
 
 
 if __name__ == "__main__":
+    if len(sys.argv) != 2:
+        sys.exit("usage: python tools/make_sample.py <nakli chat-export-android.txt>")
     main(Path(sys.argv[1]))
