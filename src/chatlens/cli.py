@@ -10,7 +10,7 @@ from pathlib import Path
 import yaml
 
 from . import __version__
-from .analysis import agreement, failure_table, suggest
+from .analysis import agreement, compare_reviewers, failure_table, suggest
 from .convert import from_chat_logs, from_whatsapp, to_turncheck, write_jsonl
 from .server import serve
 from .store import TraceError, load_labels, load_traces
@@ -49,6 +49,11 @@ def main(argv: list[str] | None = None) -> int:
     g = sub.add_parser("suggest", help="propose an axial map from your codes")
     g.add_argument("labels", type=Path)
     g.add_argument("--compare", type=Path, help="your own axial map, to compute kappa")
+
+    v = sub.add_parser("agree", help="agreement between two reviewers' labels")
+    v.add_argument("labels", type=Path, help="first reviewer's labels.jsonl")
+    v.add_argument("other", type=Path, help="second reviewer's labels.jsonl")
+    v.add_argument("--map", type=Path, help="axial map, to compare failure modes too")
 
     e = sub.add_parser("export", help="failed traces -> turncheck scenarios")
     e.add_argument("traces", type=Path)
@@ -98,6 +103,25 @@ def main(argv: list[str] | None = None) -> int:
             print(f"{'failure mode':<24}{'traces':>8}{'rate':>8}")
             for mode, n, rate in failure_table(labels, axial):
                 print(f"{mode:<24}{n:>8}{rate:>8.0%}")
+            return 0
+        if a.cmd == "agree":
+            res = compare_reviewers(labels, load_labels(a.other), _axial(a.map) if a.map else None)
+            print(
+                f"labelled by both: {res['both']} (only first: {res['only_a']}, "
+                f"only second: {res['only_b']})"
+            )
+            if not res["both"]:
+                return 1
+            print(
+                f"verdicts agree on {res['verdict_agreement']:.0%}, "
+                f"Cohen's kappa {res['verdict_kappa']:.2f}"
+            )
+            if "mode_kappa" in res:
+                print(f"failure modes (both failed): kappa {res['mode_kappa']:.2f}")
+            for t in res["disagree"][:20]:
+                print(f"  verdicts differ: {t}")
+            for t in res.get("mode_disagree", [])[:20]:
+                print(f"  modes differ:    {t}")
             return 0
         if a.cmd == "suggest":
             proposal = suggest([c for lab in labels.values() for c in lab["codes"]])

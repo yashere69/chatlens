@@ -103,6 +103,30 @@ def test_serve_refuses_an_empty_trace_file(tmp_path, capsys):
     assert "no conversations" in capsys.readouterr().err
 
 
+def test_agree_compares_two_reviewers(tmp_path, capsys):
+    from chatlens.analysis import compare_reviewers
+
+    def labels(rows):
+        return {r[0]: {"trace": r[0], "verdict": r[1], "note": "", "codes": r[2]} for r in rows}
+
+    a = labels([("t1", "fail", ["wrong-fee"]), ("t2", "pass", []), ("t3", "fail", ["no-link"])])
+    b = labels([("t1", "fail", ["wrong-fee"]), ("t2", "fail", ["rude"]), ("t4", "pass", [])])
+    axial = {"policy": ["wrong-fee"], "tone": ["rude"], "links": ["no-link"]}
+    res = compare_reviewers(a, b, axial)
+    assert (res["both"], res["only_a"], res["only_b"]) == (2, 1, 1)
+    assert res["disagree"] == ["t2"] and res["verdict_agreement"] == 0.5
+    assert res["mode_kappa"] == 1.0  # both failed only t1, both called it policy
+    pa, pb = tmp_path / "a.jsonl", tmp_path / "b.jsonl"
+    from chatlens.store import save_labels
+
+    save_labels(pa, a)
+    save_labels(pb, b)
+    (tmp_path / "map.yaml").write_text("policy: [wrong-fee]\ntone: [rude]\n", encoding="utf-8")
+    assert main(["agree", str(pa), str(pb), "--map", str(tmp_path / "map.yaml")]) == 0
+    out = capsys.readouterr().out
+    assert "verdicts differ: t2" in out and "kappa" in out
+
+
 def test_malformed_axial_map_is_an_error_not_a_traceback(tmp_path, capsys):
     p = tmp_path / "map.yaml"
     for text in ("policy: [wrong-fee\n", "- just\n- a list\n"):

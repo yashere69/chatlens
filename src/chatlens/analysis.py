@@ -103,3 +103,29 @@ def agreement(
         a.append(ma or "")
         b.append(rename.get(mb or "", mb or ""))
     return kappa(a, b)
+
+
+def compare_reviewers(
+    a: dict[str, dict], b: dict[str, dict], axial: dict[str, list[str]] | None = None
+) -> dict:
+    """Agreement between two people who labelled the same traces.
+
+    Verdict kappa over every trace both labelled; when an axial map is given, kappa over
+    failure modes for the traces both called failed. `disagree` lists the traces to talk
+    through, which is the point of having two reviewers.
+    """
+    both = sorted(set(a) & set(b))
+    out: dict = {"both": len(both), "only_a": len(set(a) - set(b)), "only_b": len(set(b) - set(a))}
+    if not both:
+        return out
+    va, vb = [a[t]["verdict"] for t in both], [b[t]["verdict"] for t in both]
+    out["verdict_agreement"] = sum(x == y for x, y in zip(va, vb, strict=True)) / len(both)
+    out["verdict_kappa"] = kappa(va, vb)
+    out["disagree"] = [t for t, x, y in zip(both, va, vb, strict=True) if x != y]
+    failed = [t for t in both if a[t]["verdict"] == b[t]["verdict"] == "fail"]
+    if axial and failed:
+        ma = [mode_of(a[t], axial) or "" for t in failed]
+        mb = [mode_of(b[t], axial) or "" for t in failed]
+        out["mode_kappa"] = kappa(ma, mb)
+        out["mode_disagree"] = [t for t, x, y in zip(failed, ma, mb, strict=True) if x != y]
+    return out
