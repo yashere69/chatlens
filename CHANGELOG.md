@@ -2,6 +2,9 @@
 
 ## Unreleased
 
+- `import` that finds no conversations is an error and writes nothing. `report`, `suggest`,
+  `agree` and `export` with a labels file that doesn't exist are errors; before, `report`
+  printed an empty table and exited 0.
 - `serve` given a labels file that isn't chatlens's (nakli's intent labels, say, which
   default to the same name) says so and points at `--labels`.
 - CI: the `ui` job fails if the browser tests can't run, instead of passing on skips.

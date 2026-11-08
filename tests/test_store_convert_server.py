@@ -163,3 +163,14 @@ def test_serve_explains_a_foreign_labels_file(tmp_path, capsys):
     assert main(args) == 2
     err = capsys.readouterr().err
     assert "isn't a chatlens labels file" in err and "--labels" in err
+
+
+def test_empty_import_and_missing_labels_are_errors(tmp_path, capsys):
+    empty = tmp_path / "calls.jsonl"
+    empty.write_text("", encoding="utf-8")
+    out = tmp_path / "traces.jsonl"
+    assert main(["import", str(empty), "--from", "chat-logs", "-o", str(out)]) == 2
+    assert "no conversations found" in capsys.readouterr().err and not out.exists()
+    assert main(["report", str(tmp_path / "nope.jsonl")]) == 2
+    assert main(["agree", str(EXAMPLES / "labels.jsonl"), str(tmp_path / "nope.jsonl")]) == 2
+    assert "no such labels file" in capsys.readouterr().err

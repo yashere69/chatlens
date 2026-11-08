@@ -93,9 +93,14 @@ def main(argv: list[str] | None = None) -> int:
                 return 2
             else:
                 traces = from_whatsapp(text, a.business)
+            if not traces:
+                raise TraceError(f"{a.export}: no conversations found; nothing written")
             write_jsonl(traces, a.out)
             print(f"wrote {len(traces)} traces to {a.out}")
             return 0
+        for f in (a.labels, getattr(a, "other", None)):
+            if f is not None and not f.exists():
+                raise TraceError(f"{f}: no such labels file")
         labels = load_labels(a.labels)
         if a.cmd == "report":
             axial = (
