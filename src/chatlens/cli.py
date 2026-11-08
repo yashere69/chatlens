@@ -16,6 +16,15 @@ from .server import serve
 from .store import TraceError, load_labels, load_traces
 
 
+def _axial(path: Path) -> dict[str, list[str]]:
+    data = yaml.safe_load(path.read_text(encoding="utf-8"))
+    if not isinstance(data, dict) or not all(
+        isinstance(v, list) and all(isinstance(c, str) for c in v) for v in data.values()
+    ):
+        raise ValueError(f"{path}: expected a mapping of failure mode -> list of codes")
+    return {str(k): v for k, v in data.items()}
+
+
 def main(argv: list[str] | None = None) -> int:
     ap = argparse.ArgumentParser(prog="chatlens")
     ap.add_argument("--version", action="version", version=f"chatlens {__version__}")
@@ -50,7 +59,12 @@ def main(argv: list[str] | None = None) -> int:
     try:
         if a.cmd == "serve":
             traces = load_traces(a.traces)
-            httpd = serve(traces, a.labels, a.port)
+            if not traces:
+                raise TraceError(f"{a.traces}: no conversations to label")
+            try:
+                httpd = serve(traces, a.labels, a.port)
+            except OSError as e:
+                raise OSError(f"can't listen on port {a.port} ({e.strerror}); try --port 0") from e
             url = f"http://127.0.0.1:{httpd.server_address[1]}/"
             print(f"{len(traces)} traces, labels in {a.labels}\nopen {url}  (Ctrl+C to stop)")
             if not a.no_browser:
@@ -75,7 +89,7 @@ def main(argv: list[str] | None = None) -> int:
         labels = load_labels(a.labels)
         if a.cmd == "report":
             axial = (
-                yaml.safe_load(a.map.read_text())
+                _axial(a.map)
                 if a.map
                 else suggest([c for lab in labels.values() for c in lab["codes"]])
             )
@@ -89,7 +103,7 @@ def main(argv: list[str] | None = None) -> int:
             proposal = suggest([c for lab in labels.values() for c in lab["codes"]])
             print(yaml.safe_dump(proposal, sort_keys=True).rstrip())
             if a.compare:
-                mine = yaml.safe_load(a.compare.read_text())
+                mine = _axial(a.compare)
                 k = agreement(labels, mine, proposal)
                 print(f"\n{len(proposal)} suggested groups vs {len(mine)} in {a.compare}")
                 print(f"Cohen's kappa on failed traces, after matching groups: {k:.2f}")
@@ -105,7 +119,7 @@ def main(argv: list[str] | None = None) -> int:
                 n += 1
         print(f"wrote {n} scenarios to {a.out}/")
         return 0
-    except (OSError, TraceError, ValueError) as err:
+    except (OSError, TraceError, ValueError, yaml.YAMLError) as err:
         print(f"error: {err}", file=sys.stderr)
         return 2
 

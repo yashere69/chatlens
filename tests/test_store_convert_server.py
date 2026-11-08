@@ -17,10 +17,10 @@ EXAMPLES = Path(__file__).resolve().parent.parent / "examples"
 
 def test_trace_validation(tmp_path):
     p = tmp_path / "t.jsonl"
-    p.write_text('{"id": "a", "turns": [{"role": "bot", "text": "x"}]}\n')
+    p.write_text('{"id": "a", "turns": [{"role": "bot", "text": "x"}]}\n', encoding="utf-8")
     with pytest.raises(TraceError, match="role"):
         load_traces(p)
-    p.write_text('{"id": "a", "turns": []}\n{"id": "a", "turns": []}\n')
+    p.write_text('{"id": "a", "turns": []}\n{"id": "a", "turns": []}\n', encoding="utf-8")
     with pytest.raises(TraceError, match="duplicate"):
         load_traces(p)
 
@@ -42,7 +42,7 @@ def test_labels_round_trip(tmp_path):
     }
     save_labels(p, rows)
     assert load_labels(p) == rows
-    assert p.read_text().splitlines()[0].startswith('{"trace": "a"')
+    assert p.read_text(encoding="utf-8").splitlines()[0].startswith('{"trace": "a"')
 
 
 def test_whatsapp_import_assigns_store_replies_to_the_last_customer():
@@ -113,7 +113,9 @@ def test_cli_report_suggest_export(tmp_path, capsys):
     out = tmp_path / "scenarios"
     assert main(["export", str(EXAMPLES / "traces.jsonl"), labels, "-o", str(out)]) == 0
     assert len(list(out.glob("*.yaml"))) == sum(
-        1 for x in (EXAMPLES / "labels.jsonl").read_text().splitlines() if '"fail"' in x
+        1
+        for x in (EXAMPLES / "labels.jsonl").read_text(encoding="utf-8").splitlines()
+        if '"fail"' in x
     )
 
 
@@ -146,7 +148,8 @@ def test_turncheck_transcripts_load_as_traces(tmp_path):
         ' "at": "2026-01-01T10:00:05+00:00"}, {"role": "tool", "text": "{\\"type\\": '
         '\\"tool_call\\"}", "at": "2026-01-01T10:00:05+00:00"}, {"role": "agent", "text": '
         '"interactive: \'Order KC1042 is shipped\'", "at": "2026-01-01T10:00:05+00:00"}], '
-        '"meta": {"scenario": "x", "passed": true, "failure": ""}}\n'
+        '"meta": {"scenario": "x", "passed": true, "failure": ""}}\n',
+        encoding="utf-8",
     )
     (trace,) = load_traces(p)
     assert [t["role"] for t in trace["turns"]] == ["customer", "tool", "agent"]

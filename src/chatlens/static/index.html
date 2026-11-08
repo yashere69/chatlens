@@ -48,6 +48,7 @@ border-radius:8px;background:#fff}
 textarea{min-height:60px;resize:vertical}
 .status{font-size:.85rem;color:var(--muted);margin-top:8px;min-height:1.2em}
 aside h2{font-size:.95rem;margin:0 0 8px}
+.tid{font-size:1rem;margin:0 0 12px}
 aside table{width:100%;border-collapse:collapse;font-size:.88rem}
 aside td{padding:4px 0;border-bottom:1px solid var(--line)} aside td:last-child{text-align:right}
 aside p{color:var(--muted);font-size:.85rem}
@@ -113,17 +114,30 @@ async function load() {
     try { labels = JSON.parse(localStorage.getItem(KEY) || "{}"); } catch { labels = {}; }
     $("demo").hidden = false; $("actions").hidden = false;
   }
+  buildList();
   const firstOpen = traces.findIndex(t => !labels[t.id]);
   show(firstOpen === -1 ? 0 : firstOpen);
 }
 
-function esc(s) { return String(s).replace(/[&<>"]/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c])); }
+function esc(s) { return String(s).replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c])); }
 
-function renderList() {
+// The list is built once; moving or saving touches only the rows that changed, so a file
+// of 10,000 conversations stays responsive.
+function buildList() {
   $("list").innerHTML = traces.map((t, k) => `<button type="button" data-k="${k}"
-    aria-current="${k === i}"><span class="dot ${labels[t.id]?.verdict || ""}"
+    aria-current="false"><span class="dot ${esc(labels[t.id]?.verdict || "")}"
     aria-hidden="true"></span>${esc(t.id)}</button>`).join("");
-  $("list").querySelectorAll("button").forEach(b => b.onclick = () => show(+b.dataset.k));
+  $("list").onclick = e => { const b = e.target.closest("button"); if (b) show(+b.dataset.k); };
+}
+
+let current = null;
+function renderList() {
+  const rows = $("list").children;
+  if (current !== null && rows[current]) rows[current].setAttribute("aria-current", "false");
+  current = i;
+  rows[i].setAttribute("aria-current", "true");
+  rows[i].scrollIntoView({block: "nearest"});
+  rows[i].firstElementChild.className = "dot " + (labels[traces[i].id]?.verdict || "");
   const done = Object.keys(labels).length;
   $("progress").textContent = `${done} of ${traces.length} labelled`;
 }
@@ -149,11 +163,12 @@ function setVerdict(v) {
 }
 
 function show(k) {
+  if (!traces.length) { $("turns").textContent = "No conversations to label."; return; }
   i = Math.max(0, Math.min(traces.length - 1, k));
   const t = traces[i];
-  $("turns").innerHTML = `<h2 style="font-size:1rem;margin:0 0 12px">${esc(t.id)}</h2>` +
-    t.turns.map(u => `<div class="turn ${u.role}"><small>${u.role}${u.at ? " · " +
-    esc(u.at.replace("T", " ").slice(0, 16)) : ""}</small>${esc(u.text)}</div>`).join("");
+  $("turns").innerHTML = `<h2 class="tid">${esc(t.id)}</h2>` +
+    t.turns.map(u => `<div class="turn ${esc(u.role)}"><small>${esc(u.role)}${u.at ? " · " +
+    esc(String(u.at).replace("T", " ").slice(0, 16)) : ""}</small>${esc(u.text)}</div>`).join("");
   const l = labels[t.id];
   setVerdict(l?.verdict || null);
   $("note").value = l?.note || "";
