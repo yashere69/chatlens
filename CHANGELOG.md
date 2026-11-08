@@ -1,5 +1,21 @@
 # Changelog
 
+## 0.3.0
+
+- `serve` checks the Host header on every request (DNS rebinding), sends a hash-based
+  Content-Security-Policy with nosniff, no-referrer and no framing, and caps label bodies
+  at 64 KB.
+- A damaged line in labels.jsonl stops the load with its line number. Before, it crashed,
+  or a line without `trace` was lost on the next save.
+- Traces may carry a BOM, numeric ids, non-string text and epoch-second `at` values; a turn
+  that isn't an object is a clear error. `serve` refuses an empty file and explains a busy
+  port.
+- The page builds the conversation list once and patches it per keypress (21 ms per move
+  at 10,000 conversations, down from about 200 ms) and keeps the current row in view.
+- `chatlens agree`: verdict and failure-mode agreement between two reviewers.
+- Malformed axial maps are reported as errors, not tracebacks.
+- Browser tests (Playwright and axe) in a `ui` CI job; tests also run on Windows and macOS.
+
 ## 0.2.0
 
 - `import --from chat-logs`: chat-completions message logs, including tool calls and list content
