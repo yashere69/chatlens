@@ -93,11 +93,25 @@ missing-info                   5     12%
 ```
 
 **`suggest`** proposes a grouping from your codes alone, by shared content words with
-"wrong", "missing" and "no" ignored (no model involved), and reports Cohen's kappa between
-its grouping and yours. On the sample it finds 5 groups where the sample's own map has 3, and agrees on
-every failed trace once groups are matched (κ = 1.00). Over-splitting isn't penalised by that
-number, which is why the group count is printed next to it. It's a second pair of eyes on
-your axial coding, not a replacement for it.
+"wrong", "missing" and "no" ignored (no model involved). With `--compare` it shows, for each
+suggested group, which of your failure modes its traces fall in, plus the adjusted Rand
+index between the two groupings (1 when they group the failed traces identically; splitting
+or merging lowers it). On the sample:
+
+```
+5 suggested groups vs 3 in examples/axial.yaml, over 17 failed traces
+adjusted Rand index 0.69 (1 = same grouping; splitting or merging lowers it)
+  generic (3) -> non-answer 3
+  ignored (4) -> non-answer 4
+  link (5) -> missing-info 5
+  number (4) -> policy-error 4
+  window (1) -> policy-error 1
+```
+
+No suggested group mixes two of your modes, but it splits two of them, because "generic
+reply" and "ignored question" share no words. That's typical: word overlap finds spelling
+variants, not concepts. Use it as a second pair of eyes on your axial coding, not a
+replacement for it.
 
 **`agree`** is for two people who labelled the same sample, each in their own file. It
 prints how many traces both labelled, raw verdict agreement, Cohen's kappa, kappa over

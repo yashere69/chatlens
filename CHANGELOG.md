@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+- `suggest --compare` reports the adjusted Rand index and a per-group breakdown instead of
+  Cohen's kappa after matching group names. The old number couldn't drop when `suggest`
+  split one of your modes in two, so the sample scored 1.00 with 5 groups against 3. It
+  now scores 0.69, and the breakdown shows which modes were split.
 - `import` that finds no conversations is an error and writes nothing. `report`, `suggest`,
   `agree` and `export` with a labels file that doesn't exist are errors; before, `report`
   printed an empty table and exited 0.

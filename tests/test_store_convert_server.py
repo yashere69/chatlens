@@ -109,7 +109,7 @@ def test_cli_report_suggest_export(tmp_path, capsys):
     assert main(["report", labels, "--map", str(EXAMPLES / "axial.yaml")]) == 0
     assert "policy-error" in capsys.readouterr().out
     assert main(["suggest", labels, "--compare", str(EXAMPLES / "axial.yaml")]) == 0
-    assert "kappa" in capsys.readouterr().out
+    assert "adjusted Rand index 0.69" in capsys.readouterr().out
     out = tmp_path / "scenarios"
     assert main(["export", str(EXAMPLES / "traces.jsonl"), labels, "-o", str(out)]) == 0
     assert len(list(out.glob("*.yaml"))) == sum(

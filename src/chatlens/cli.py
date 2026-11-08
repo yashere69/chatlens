@@ -10,7 +10,7 @@ from pathlib import Path
 import yaml
 
 from . import __version__
-from .analysis import agreement, compare_reviewers, failure_table, suggest
+from .analysis import compare_groupings, compare_reviewers, failure_table, suggest
 from .convert import from_chat_logs, from_whatsapp, to_turncheck, write_jsonl
 from .server import serve
 from .store import TraceError, load_labels, load_traces
@@ -48,7 +48,9 @@ def main(argv: list[str] | None = None) -> int:
 
     g = sub.add_parser("suggest", help="propose an axial map from your codes")
     g.add_argument("labels", type=Path)
-    g.add_argument("--compare", type=Path, help="your own axial map, to compute kappa")
+    g.add_argument(
+        "--compare", type=Path, help="your own axial map, to see how the suggestion differs"
+    )
 
     v = sub.add_parser("agree", help="agreement between two reviewers' labels")
     v.add_argument("labels", type=Path, help="first reviewer's labels.jsonl")
@@ -138,9 +140,18 @@ def main(argv: list[str] | None = None) -> int:
             print(yaml.safe_dump(proposal, sort_keys=True).rstrip())
             if a.compare:
                 mine = _axial(a.compare)
-                k = agreement(labels, mine, proposal)
-                print(f"\n{len(proposal)} suggested groups vs {len(mine)} in {a.compare}")
-                print(f"Cohen's kappa on failed traces, after matching groups: {k:.2f}")
+                cmp = compare_groupings(labels, mine, proposal)
+                print(
+                    f"\n{len(proposal)} suggested groups vs {len(mine)} in {a.compare}, "
+                    f"over {cmp['n']} failed traces"
+                )
+                print(
+                    f"adjusted Rand index {cmp['ari']:.2f} "
+                    "(1 = same grouping; splitting or merging lowers it)"
+                )
+                for group, modes in sorted(cmp["crosstab"].items()):
+                    where = ", ".join(f"{m} {k}" for m, k in modes.most_common())
+                    print(f"  {group} ({sum(modes.values())}) -> {where}")
             return 0
         traces_by_id = {t["id"]: t for t in load_traces(a.traces)}
         a.out.mkdir(parents=True, exist_ok=True)

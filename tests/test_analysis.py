@@ -1,6 +1,13 @@
 import pytest
 
-from chatlens.analysis import agreement, failure_table, kappa, mode_of, suggest
+from chatlens.analysis import (
+    adjusted_rand,
+    compare_groupings,
+    failure_table,
+    kappa,
+    mode_of,
+    suggest,
+)
 
 AXIAL = {
     "policy-error": ["wrong-fee", "wrong-return-window"],
@@ -42,16 +49,25 @@ def test_suggest_groups_by_content_words():
     assert {"wrong-tone"} in as_sets and {"wrong-fee"} in as_sets
 
 
-def test_agreement_matches_renamed_groups():
+def test_compare_groupings_ignores_names_but_not_splits():
     labels = {
         f"t{i}": lab(f"t{i}", "fail", c)
-        for i, c in enumerate(["wrong-fee", "wrong-return-window", "ignored-question"])
+        for i, c in enumerate(
+            ["wrong-fee", "wrong-return-window", "ignored-question", "generic-reply"]
+        )
     }
-    suggested = {
-        "fee": ["wrong-fee"],
-        "return": ["wrong-return-window"],
-        "question": ["ignored-question"],
+    renamed = {
+        "fee": ["wrong-fee", "wrong-return-window"],
+        "q": ["ignored-question", "generic-reply"],
     }
-    assert agreement(labels, AXIAL, suggested) == 1.0
-    merged_wrongly = {"x": ["wrong-fee", "ignored-question"], "y": ["wrong-return-window"]}
-    assert agreement(labels, AXIAL, merged_wrongly) < 1.0
+    same_shape = compare_groupings(labels, AXIAL, renamed)
+    split = {"a": ["wrong-fee"], "b": ["wrong-return-window"], "q": ["ignored-question"]}
+    assert same_shape["ari"] == 1.0
+    assert compare_groupings(labels, AXIAL, split)["ari"] < 1.0
+    assert same_shape["crosstab"]["fee"] == {"policy-error": 2}
+
+
+def test_adjusted_rand_known_values():
+    assert adjusted_rand(list("aabb"), list("xxyy")) == 1.0
+    assert adjusted_rand(list("aabb"), list("xyxy")) < 0
+    assert abs(adjusted_rand(list("aabb"), list("xxyz")) - 0.5714) < 0.001  # sklearn's value

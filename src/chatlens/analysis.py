@@ -6,7 +6,8 @@ codes into a small set of failure modes (axial coding) and count them. The count
 which evals are worth writing.
 
 `suggest` proposes an axial grouping from the codes alone (token overlap, no model), and
-`kappa` measures how far that suggestion agrees with your own grouping.
+`compare_groupings` shows how it differs from your own. `kappa` is for two reviewers'
+verdicts (`agree`).
 """
 
 from __future__ import annotations
@@ -83,26 +84,43 @@ def kappa(a: list[str], b: list[str]) -> float:
     return 1.0 if expected == 1 else (observed - expected) / (1 - expected)
 
 
-def agreement(
-    labels: dict[str, dict], mine: dict[str, list[str]], suggested: dict[str, list[str]]
-) -> float:
-    """Kappa over failed traces between your axial map and a suggested one.
+def _pairs(n: int) -> float:
+    return n * (n - 1) / 2
 
-    The two maps use different mode names, so each suggested mode is renamed to the mode of
-    yours it overlaps most before comparing.
-    """
-    rename = {}
-    for s_mode, s_codes in suggested.items():
-        overlap = Counter(m for m, codes in mine.items() for c in s_codes if c in codes)
-        rename[s_mode] = overlap.most_common(1)[0][0] if overlap else s_mode
+
+def adjusted_rand(a: list[str], b: list[str]) -> float:
+    """Adjusted Rand index between two groupings of the same items: 1 when they group
+    identically, about 0 for chance. Unlike matching group names, it drops when either side
+    splits or merges groups."""
+    n = len(a)
+    if n < 2:
+        return 1.0
+    index = sum(_pairs(c) for c in Counter(zip(a, b, strict=True)).values())
+    sa = sum(_pairs(c) for c in Counter(a).values())
+    sb = sum(_pairs(c) for c in Counter(b).values())
+    expected = sa * sb / _pairs(n)
+    best = (sa + sb) / 2
+    if best == expected:
+        return 1.0 if index == best else 0.0
+    return (index - expected) / (best - expected)
+
+
+def compare_groupings(
+    labels: dict[str, dict], mine: dict[str, list[str]], suggested: dict[str, list[str]]
+) -> dict:
+    """How a suggested axial map groups your failed traces, compared with your own map:
+    the adjusted Rand index, and for each suggested group, which of your modes its traces
+    are in."""
     a, b = [], []
     for lab in labels.values():
         if lab["verdict"] != "fail":
             continue
-        ma, mb = mode_of(lab, mine), mode_of(lab, suggested)
-        a.append(ma or "")
-        b.append(rename.get(mb or "", mb or ""))
-    return kappa(a, b)
+        a.append(mode_of(lab, mine) or "(unmapped)")
+        b.append(mode_of(lab, suggested) or "(unmapped)")
+    crosstab: dict[str, Counter] = {}
+    for m, s in zip(a, b, strict=True):
+        crosstab.setdefault(s, Counter())[m] += 1
+    return {"n": len(a), "ari": adjusted_rand(a, b), "crosstab": crosstab}
 
 
 def compare_reviewers(
