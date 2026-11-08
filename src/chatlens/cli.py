@@ -68,6 +68,11 @@ def main(argv: list[str] | None = None) -> int:
                 raise TraceError(f"{a.traces}: no conversations to label")
             try:
                 httpd = serve(traces, a.labels, a.port)
+            except TraceError as e:
+                raise TraceError(
+                    f"{e}\n{a.labels} isn't a chatlens labels file. chatlens writes its verdicts "
+                    "to --labels (default ./labels.jsonl); pass --labels to use another file."
+                ) from e
             except OSError as e:
                 raise OSError(f"can't listen on port {a.port} ({e.strerror}); try --port 0") from e
             url = f"http://127.0.0.1:{httpd.server_address[1]}/"

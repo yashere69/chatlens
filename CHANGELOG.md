@@ -1,5 +1,11 @@
 # Changelog
 
+## Unreleased
+
+- `serve` given a labels file that isn't chatlens's (nakli's intent labels, say, which
+  default to the same name) says so and points at `--labels`.
+- CI: the `ui` job fails if the browser tests can't run, instead of passing on skips.
+
 ## 0.3.0
 
 - `serve` checks the Host header on every request (DNS rebinding), sends a hash-based

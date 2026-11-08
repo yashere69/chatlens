@@ -153,3 +153,13 @@ def test_turncheck_transcripts_load_as_traces(tmp_path):
     )
     (trace,) = load_traces(p)
     assert [t["role"] for t in trace["turns"]] == ["customer", "tool", "agent"]
+
+
+def test_serve_explains_a_foreign_labels_file(tmp_path, capsys):
+    # nakli --labels writes intent labels to labels.jsonl, chatlens's default file name
+    foreign = tmp_path / "labels.jsonl"
+    foreign.write_text('{"file": "a.txt", "line": 3, "intent": "cod"}\n', encoding="utf-8")
+    args = ["serve", str(EXAMPLES / "traces.jsonl"), "--labels", str(foreign), "--no-browser"]
+    assert main(args) == 2
+    err = capsys.readouterr().err
+    assert "isn't a chatlens labels file" in err and "--labels" in err
