@@ -147,7 +147,7 @@ def test_turncheck_transcripts_load_as_traces(tmp_path):
         '{"id": "02-order-status", "turns": [{"role": "customer", "text": "where is #KC1042?",'
         ' "at": "2026-01-01T10:00:05+00:00"}, {"role": "tool", "text": "{\\"type\\": '
         '\\"tool_call\\"}", "at": "2026-01-01T10:00:05+00:00"}, {"role": "agent", "text": '
-        '"interactive: \'Order KC1042 is shipped\'", "at": "2026-01-01T10:00:05+00:00"}], '
+        '"Order KC1042 is shipped\\n[buttons: Track it]", "at": "2026-01-01T10:00:05+00:00"}], '
         '"meta": {"scenario": "x", "passed": true, "failure": ""}}\n',
         encoding="utf-8",
     )
