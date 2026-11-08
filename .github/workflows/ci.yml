@@ -36,3 +36,5 @@ jobs:
       - run: pip install -e ".[dev,ui]"
       - run: python -m playwright install --with-deps chromium
       - run: pytest -q tests/test_ui.py
+        env:
+          CHATLENS_UI_REQUIRED: "1"

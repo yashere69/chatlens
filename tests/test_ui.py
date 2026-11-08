@@ -1,16 +1,27 @@
 """The labelling page in a real browser: the keyboard flow, hostile conversation text,
 the CSP, and an axe accessibility scan. The CSP forbids eval, so the tests wait with
 locators rather than page.wait_for_function. Skipped when Playwright or its Chromium is
-missing (CI installs both in the `ui` job)."""
+missing, unless CHATLENS_UI_REQUIRED=1 (set in the `ui` CI job, so a broken browser install
+fails the job instead of skipping every test)."""
 
 import json
+import os
 import re
 import threading
 from pathlib import Path
 
 import pytest
 
-sync_api = pytest.importorskip("playwright.sync_api")
+REQUIRED = os.environ.get("CHATLENS_UI_REQUIRED") == "1"
+
+
+def _need(module: str):
+    if REQUIRED:
+        return __import__(module, fromlist=["_"])
+    return pytest.importorskip(module)
+
+
+sync_api = _need("playwright.sync_api")
 expect = sync_api.expect
 
 from chatlens.server import serve  # noqa: E402
@@ -26,6 +37,8 @@ def browser():
         try:
             b = p.chromium.launch()
         except Exception as e:  # browser binary not installed
+            if REQUIRED:
+                raise
             pytest.skip(f"chromium unavailable: {e}")
         yield b
         b.close()
@@ -81,7 +94,7 @@ def test_conversation_html_is_shown_as_text_not_run(app):
 
 
 def test_no_serious_accessibility_violations(app):
-    axe_mod = pytest.importorskip("axe_playwright_python.sync_playwright")
+    axe_mod = _need("axe_playwright_python.sync_playwright")
     page = app[0]
     results = axe_mod.Axe().run(page)
     bad = [
