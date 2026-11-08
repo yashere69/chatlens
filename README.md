@@ -194,4 +194,16 @@ file, which is the next thing to change if you label tens of thousands of traces
 Stable: the trace and label file formats, and the CLI commands. Experimental: `suggest`'s
 grouping heuristic, and the page layout.
 
+## Development
+
+```bash
+pip install -e ".[dev,ui]" && python -m playwright install chromium
+ruff check . && ruff format --check . && mypy src && pytest
+```
+
+The whole UI is `src/chatlens/static/index.html`; there is no build step, so edit it and
+reload. Any change to it should keep `tests/test_ui.py` passing, including the axe scan.
+The sample data comes from `tools/make_sample.py` (a nakli export with planted mistakes),
+and `tools/ui_latency.py` reruns the latency table above.
+
 MIT licensed.
