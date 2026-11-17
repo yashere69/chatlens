@@ -1,6 +1,6 @@
 [project]
 name = "chatlens"
-version = "0.3.2"
+version = "0.3.3"
 description = "A local, keyboard-first workbench for error analysis of chat-agent conversations."
 readme = "README.md"
 license = { text = "MIT" }

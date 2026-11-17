@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.3.3
+
+- `chatlens serve` starts listening at once. `http.server` looks up the hostname of the
+  bind address first, and on some macOS machines (a GitHub macOS runner took about 35
+  seconds for 127.0.0.1) the page was unreachable until that finished.
+
 ## 0.3.2
 
 - `suggest` names each group the same way on every run. The name came from iterating a
