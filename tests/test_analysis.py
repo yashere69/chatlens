@@ -1,3 +1,8 @@
+import json
+import os
+import subprocess
+import sys
+
 import pytest
 
 from chatlens.analysis import (
@@ -47,6 +52,36 @@ def test_suggest_groups_by_content_words():
     as_sets = [set(g) for g in groups.values()]
     assert {"missing-tracking-link", "no-tracking-link"} in as_sets
     assert {"wrong-tone"} in as_sets and {"wrong-fee"} in as_sets
+
+
+def test_suggest_names_do_not_depend_on_the_hash_seed():
+    """Group names came from iterating a set, so PYTHONHASHSEED changed them."""
+    script = (
+        "import json, sys; from chatlens.analysis import suggest; "
+        "print(json.dumps(suggest(sys.argv[1:])))"
+    )
+    codes = [
+        "missing-tracking-link",
+        "no-tracking-link",
+        "ignored-question",
+        "question-ignored",
+        "policy-number-wrong",
+        "generic-reply",
+        "wrong-return-window",
+    ]
+    outputs = set()
+    for seed in ("0", "1", "2", "3", "4", "5"):
+        env = {**os.environ, "PYTHONHASHSEED": seed}
+        res = subprocess.run(
+            [sys.executable, "-c", script, *codes],
+            env=env,
+            capture_output=True,
+            text=True,
+            check=True,
+        )
+        outputs.add(res.stdout)
+    assert len(outputs) == 1
+    assert sorted(json.loads(outputs.pop())) == ["link", "number", "question", "reply", "window"]
 
 
 def test_compare_groupings_ignores_names_but_not_splits():

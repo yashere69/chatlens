@@ -101,10 +101,10 @@ or merging lowers it). On the sample:
 ```
 5 suggested groups vs 3 in examples/axial.yaml, over 17 failed traces
 adjusted Rand index 0.69 (1 = same grouping; splitting or merging lowers it)
-  generic (3) -> non-answer 3
-  ignored (4) -> non-answer 4
   link (5) -> missing-info 5
   number (4) -> policy-error 4
+  question (4) -> non-answer 4
+  reply (3) -> non-answer 3
   window (1) -> policy-error 1
 ```
 

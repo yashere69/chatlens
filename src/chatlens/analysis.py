@@ -33,18 +33,31 @@ def failure_table(labels: dict[str, dict], axial: dict[str, list[str]]) -> list[
     return [(mode, n, n / total if total else 0.0) for mode, n in modes.most_common()]
 
 
+_STOP = {"", "the", "a", "of", "to", "wrong", "missing", "no", "not"}
+
+
+def _words(code: str) -> list[str]:
+    """Content words of a code, in order."""
+    return [w for w in re.split(r"[-_\s]+", code.lower()) if w not in _STOP]
+
+
 def _tokens(code: str) -> set[str]:
-    return set(re.split(r"[-_\s]+", code.lower())) - {
-        "",
-        "the",
-        "a",
-        "of",
-        "to",
-        "wrong",
-        "missing",
-        "no",
-        "not",
-    }
+    return set(_words(code))
+
+
+def _group_name(group: list[str]) -> str:
+    """The word most codes in the group share. On a tie, the last word of the first code:
+    in "missing-tracking-link" or "wrong-return-window" that's the head noun. Picking from
+    a set here made the name depend on the hash seed, so two runs could disagree."""
+    counts = Counter(w for c in group for w in _tokens(c))
+    if not counts:
+        return group[0]
+    top = max(counts.values())
+    for code in sorted(group):
+        for w in reversed(_words(code)):
+            if counts[w] == top:
+                return w
+    return group[0]
 
 
 def suggest(codes: list[str], threshold: float = 0.34) -> dict[str, list[str]]:
@@ -65,8 +78,7 @@ def suggest(codes: list[str], threshold: float = 0.34) -> dict[str, list[str]]:
             best.append(code)
     out = {}
     for g in groups:
-        common = Counter(tok for c in g for tok in _tokens(c)).most_common(1)
-        name = common[0][0] if common else g[0]
+        name = _group_name(g)
         while name in out:
             name += "+"
         out[name] = sorted(g)
