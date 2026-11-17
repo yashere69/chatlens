@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.3.2
+
+- `suggest` names each group the same way on every run. The name came from iterating a
+  set, so it depended on Python's hash seed: the same labels could print `generic` on one
+  run and `reply` on the next. It's now the most shared word, and on a tie the last word
+  of the group's first code (usually the head noun: `tracking-link` -> `link`).
+
 ## 0.3.1
 
 - `import --from chat-logs` errors name the file (`prod-logs.jsonl:2`), not just its stem.
