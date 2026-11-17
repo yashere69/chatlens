@@ -133,3 +133,16 @@ def test_malformed_axial_map_is_an_error_not_a_traceback(tmp_path, capsys):
         p.write_text(text, encoding="utf-8")
         assert main(["report", str(EXAMPLES / "labels.jsonl"), "--map", str(p)]) == 2
         assert "error:" in capsys.readouterr().err
+
+
+def test_serve_does_not_look_up_its_own_hostname(tmp_path, monkeypatch):
+    """http.server resolves the bind address before listening; on a macOS CI runner that
+    took ~35 s, so `chatlens serve` would sit unreachable that long."""
+    import socket
+
+    def boom(*a):
+        raise AssertionError("getfqdn called")
+
+    monkeypatch.setattr(socket, "getfqdn", boom)
+    httpd = serve(load_traces(EXAMPLES / "traces.jsonl"), tmp_path / "labels.jsonl", 0)
+    httpd.server_close()

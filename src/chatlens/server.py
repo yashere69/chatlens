@@ -19,6 +19,7 @@ import re
 from http.server import BaseHTTPRequestHandler, HTTPServer, ThreadingHTTPServer
 from importlib import resources
 from pathlib import Path
+from socketserver import TCPServer
 from threading import Lock
 from typing import cast
 
@@ -130,5 +131,16 @@ def make_handler(traces: list[dict], labels_path: Path):
     return Handler
 
 
+class LocalServer(ThreadingHTTPServer):
+    """ThreadingHTTPServer without http.server's reverse-DNS lookup of the bind address,
+    which runs before the socket listens and took about 35 seconds for 127.0.0.1 on a
+    GitHub macOS runner. The page never uses the looked-up name."""
+
+    def server_bind(self) -> None:
+        TCPServer.server_bind(self)
+        host, port = self.server_address[:2]
+        self.server_name, self.server_port = str(host), int(port)
+
+
 def serve(traces: list[dict], labels_path: Path, port: int) -> ThreadingHTTPServer:
-    return ThreadingHTTPServer(("127.0.0.1", port), make_handler(traces, labels_path))
+    return LocalServer(("127.0.0.1", port), make_handler(traces, labels_path))
